@@ -11,7 +11,6 @@ from rag_.memory import ChatMemory
 from rag_.utils import timer, elapsed
 
 from PyPDF2 import PdfReader
-reader = PdfReader(file)
 
 
 
