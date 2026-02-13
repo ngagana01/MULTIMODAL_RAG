@@ -10,8 +10,10 @@ from rag_.llm import generate
 from rag_.memory import ChatMemory
 from rag_.utils import timer, elapsed
 
-import PyPDF2
+from pypdf import PdfReader
 
+
+reader = PdfReader(file)
 
 
 st.set_page_config(page_title=APP_TITLE, layout="wide")
