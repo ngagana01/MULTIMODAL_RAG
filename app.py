@@ -10,7 +10,9 @@ from rag_.llm import generate
 from rag_.memory import ChatMemory
 from rag_.utils import timer, elapsed
 
-import PyPDF2
+from PyPDF2 import PdfReader
+reader = PdfReader(file)
+
 
 
 
