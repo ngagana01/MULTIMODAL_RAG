@@ -1,13 +1,13 @@
 import streamlit as st
 from config import *
-from rag.chunking import chunk_text
-from rag.embeddings import embed
-from rag.retriever import Retriever
-from rag.reranker import rerank
-from rag.vision import describe_image
-from rag.llm import generate
-from rag.memory import ChatMemory
-from rag.utils import timer, elapsed
+from rag_.chunking import chunk_text
+from rag_.embeddings import embed
+from rag_.retriever import Retriever
+from rag_.reranker import rerank
+from rag_.vision import describe_image
+from rag_.llm import generate
+from rag_.memory import ChatMemory
+from rag_.utils import timer, elapsed
 import PyPDF2
 
 st.set_page_config(page_title=APP_TITLE, layout="wide")
