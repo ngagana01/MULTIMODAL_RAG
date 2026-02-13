@@ -1,5 +1,6 @@
 import streamlit as st
 from config import *
+
 from rag_.chunking import chunk_text
 from rag_.embeddings import embed
 from rag_.retriever import Retriever
@@ -8,68 +9,123 @@ from rag_.vision import describe_image
 from rag_.llm import generate
 from rag_.memory import ChatMemory
 from rag_.utils import timer, elapsed
+
 from pypdf import PdfReader
+
+
 
 st.set_page_config(page_title=APP_TITLE, layout="wide")
 st.title(APP_TITLE)
 
-memory = ChatMemory()
 
-# SIDEBAR
+if "memory" not in st.session_state:
+    st.session_state.memory = ChatMemory()
+
+if "retriever" not in st.session_state:
+    st.session_state.retriever = None
+
+if "chunks_loaded" not in st.session_state:
+    st.session_state.chunks_loaded = False
+
+
 st.sidebar.header("Settings")
-top_k = st.sidebar.slider("Top K",1,10,TOP_K)
-mode = st.sidebar.selectbox("Retrieval Mode",["text","image","both"])
 
-# FILE UPLOAD
-doc = st.file_uploader("Upload TXT or PDF")
-img = st.file_uploader("Upload Image")
+top_k = st.sidebar.slider("Top Results", 1, 10, TOP_K)
+mode = st.sidebar.selectbox(
+    "Retrieval Mode",
+    ["text", "image", "both"]
+)
 
-if doc:
+st.sidebar.markdown("---")
+st.sidebar.caption("Multimodal RAG System")
+
+
+
+doc = st.file_uploader("Upload TXT or PDF", type=["txt", "pdf"])
+img = st.file_uploader("Upload Image", type=["png", "jpg", "jpeg"])
+
+
+
+if doc and not st.session_state.chunks_loaded:
     text = ""
-    if doc.name.endswith(".pdf"):
-        reader = PyPDF2.PdfReader(doc)
-        for p in reader.pages:
-            text += p.extract_text()
-    else:
-        text = doc.read().decode()
 
-    chunks = chunk_text(text,CHUNK_SIZE,CHUNK_OVERLAP)
-    vecs = embed(chunks)
+    try:
+        if doc.name.endswith(".pdf"):
+            reader = PdfReader(doc)
+            for page in reader.pages:
+                text += page.extract_text() or ""
+        else:
+            text = doc.read().decode("utf-8")
 
-    retriever = Retriever(len(vecs[0]))
-    retriever.add(vecs,chunks)
+        if not text.strip():
+            st.error("No readable text found in file.")
+            st.stop()
 
-    st.success(f"{len(chunks)} chunks indexed")
+        chunks = chunk_text(text, CHUNK_SIZE, CHUNK_OVERLAP)
 
-# IMAGE
-img_desc = ""
-if img and mode!="text":
-    with st.spinner("Analyzing image..."):
-        img_desc = describe_image(img)
-        st.info(img_desc)
+        with st.spinner("Generating embeddings..."):
+            vectors = embed(chunks)
 
-# QUERY
-q = st.text_input("Ask question")
+        retriever = Retriever(len(vectors[0]))
+        retriever.add(vectors, chunks)
 
-if q:
+        st.session_state.retriever = retriever
+        st.session_state.chunks_loaded = True
+
+        st.success(f"Indexed {len(chunks)} chunks")
+
+    except Exception as e:
+        st.error(f"Processing error: {e}")
+        st.stop()
+
+
+
+img_description = ""
+
+if img and mode != "text":
+    try:
+        with st.spinner("Analyzing image..."):
+            img_description = describe_image(img)
+        st.info(img_description)
+    except Exception as e:
+        st.error(f"Image analysis failed: {e}")
+
+
+
+query = st.text_input("Ask a question about your data")
+
+if query:
     start = timer()
+    context = ""
 
-    ctx = ""
-    if doc and mode!="image":
-        q_vec = embed([q])[0]
-        docs = retriever.search(q_vec, top_k)
-        docs = rerank(q, docs)
-        ctx += "\n".join(docs)
+    try:
+        if st.session_state.retriever and mode != "image":
+            q_vec = embed([query])[0]
+            docs = st.session_state.retriever.search(q_vec, top_k)
+            docs = rerank(query, docs)
+            context += "\n".join(docs)
 
-    if img_desc and mode!="text":
-        ctx += "\n"+img_desc
+        if img_description and mode != "text":
+            context += "\n" + img_description
 
-    ctx += "\n"+memory.context()
+        context += "\n" + st.session_state.memory.context()
 
-    ans = generate(q, ctx)
-    memory.add(q,ans)
+        if not context.strip():
+            st.warning("No context available. Upload document or image.")
+            st.stop()
 
-    st.markdown("### Answer")
-    st.write(ans)
+        answer = generate(query, context)
+        st.session_state.memory.add(query, answer)
 
-    st.caption(f"Latency: {elapsed(start)}s")
+        st.markdown("### Answer")
+        st.write(answer)
+
+        st.caption(f"Latency: {elapsed(start)} sec")
+
+    except Exception as e:
+        st.error(f"Query failed: {e}")
+
+
+
+st.markdown("---")
+st.caption("Enterprise Multimodal RAG • Text + Vision")
