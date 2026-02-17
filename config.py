@@ -2,7 +2,7 @@ import os
 
 # API KEYS
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-JINA_API_KEY = os.getenv("jina_c177f70bd42a4948bd9498b83020e89f9vGZbcG9XNFJstLt2BCIotBSjXWa")
+JINA_API_KEY = os.getenv("JINA_API_KEY")
 
 # MODELS
 VISION_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct"
